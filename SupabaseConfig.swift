@@ -4,7 +4,7 @@ import Foundation
 /// Disponibles dans le dashboard Supabase : Settings > API
 enum SupabaseConfig {
     /// URL de ton projet Supabase (ex: "https://abcdefghijklm.supabase.co")
-    static let url = "https://TON-PROJECT-ID.supabase.co"
+    static let url = "https://inaaarwomalmaxyipllr.supabase.co"
 
     /// Clé publique "publishable" (utilisable côté client, Row Level Security activé)
     /// Format : sb_publishable_xxxxxxxxxxxx
