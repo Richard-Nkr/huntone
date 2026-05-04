@@ -6,8 +6,14 @@ enum SupabaseConfig {
     /// URL de ton projet Supabase (ex: "https://abcdefghijklm.supabase.co")
     static let url = "https://TON-PROJECT-ID.supabase.co"
 
-    /// Clé publique "anon" (utilisable côté client, Row Level Security activé)
-    static let anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    /// Clé publique "publishable" (utilisable côté client, Row Level Security activé)
+    /// Format : sb_publishable_xxxxxxxxxxxx
+    /// Disponible dans Supabase Dashboard > Settings > API > Publishable Key
+    static let publishableKey = "sb_publishable_67wIRAWNXINuB8crvtD1Mg_Sal_f0-c"
+
+    /// Clé secrète "service_role" — NE JAMAIS inclure dans le binaire client
+    /// Usage : backend/admin uniquement
+    static let serviceRoleKey = "sb_secret_..."
 
     /// Bucket Storage pour les photos des frames
     static let framesBucket = "frame-images"

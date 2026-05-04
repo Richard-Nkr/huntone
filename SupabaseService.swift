@@ -89,7 +89,7 @@ final class SupabaseService: ObservableObject {
 
     private init() {
         self.baseURL = SupabaseConfig.url
-        self.anonKey = SupabaseConfig.anonKey
+        self.anonKey = SupabaseConfig.publishableKey
         self.session = URLSession.shared
     }
 

@@ -8,12 +8,16 @@
 
 ## 2. Configurer le projet
 
-Remplis les placeholders dans `SupabaseConfig.swift` :
+2. Remplis les placeholders dans `SupabaseConfig.swift` :
 
 ```swift
 enum SupabaseConfig {
+    /// URL de ton projet → dans Settings > API
     static let url = "https://TON-PROJECT-ID.supabase.co"
-    static let anonKey = "eyJhbGciOi..." // ta vraie anon key
+    
+    /// Publishable Key → clé publique format sb_publishable_...
+    /// Dashboard Supabase > Settings > API > Publishable Key
+    static let publishableKey = "sb_publishable_xxxxxxxxxxxx"
 }
 ```
 
@@ -87,7 +91,7 @@ Supabase Cloud (Free Tier)
     └── frame-images/
 
 App iOS (Swift)
-├── SupabaseConfig.swift       → URL + anon key
+├── SupabaseConfig.swift       → URL + publishable key
 ├── SupabaseService.swift      → REST client (auth, CRUD, upload)
 └── HuntoneApp.swift           → init + restore session
 ```
