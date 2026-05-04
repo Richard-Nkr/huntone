@@ -1,0 +1,191 @@
+version: "3.9"
+
+services:
+  # ── Database ─────────────────────────────────────────────────────────────
+  db:
+    image: supabase/postgres:15.6.1.50
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - huntone
+
+  # ── Auth (GoTrue) ────────────────────────────────────────────────────────
+  auth:
+    image: supabase/gotrue:v2.153.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      GOTRUE_SITE_URL: ${GOTRUE_SITE_URL}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_EXP: ${GOTRUE_JWT_EXP}
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_MAILER_AUTOCONFIRM: ${GOTRUE_MAILER_AUTOCONFIRM:-false}
+      GOTRUE_SMS_AUTOCONFIRM: ${GOTRUE_SMS_AUTOCONFIRM:-false}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${GOTRUE_SMTP_HOST:+true}
+      GOTRUE_SMTP_HOST: ${GOTRUE_SMTP_HOST:-}
+      GOTRUE_SMTP_PORT: ${GOTRUE_SMTP_PORT:-}
+      GOTRUE_SMTP_USER: ${GOTRUE_SMTP_USER:-}
+      GOTRUE_SMTP_PASS: ${GOTRUE_SMTP_PASS:-}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${GOTRUE_SMTP_ADMIN_EMAIL:-}
+      GOTRUE_SMTP_SENDER_NAME: ${GOTRUE_SMTP_SENDER_NAME:-Huntone}
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: "/auth/confirm"
+      GOTRUE_MAILER_URLPATHS_INVITE: "/auth/invite"
+      GOTRUE_MAILER_URLPATHS_RECOVERY: "/auth/recovery"
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: "/auth/email-change"
+    networks:
+      - huntone
+
+  # ── REST API (PostgREST) ─────────────────────────────────────────────────
+  rest:
+    image: postgrest/postgrest:v12.2.2
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_OPENAPI_MODE: ignore-privileges
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+    command:
+      - postgrest
+      - /etc/postgrest.conf
+    networks:
+      - huntone
+
+  # ── Storage API ──────────────────────────────────────────────────────────
+  storage:
+    image: supabase/storage-api:v1.15.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+    environment:
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      FILE_SIZE_LIMIT: ${FILE_SIZE_LIMIT:-52428800}
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-file}
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: huntone
+      REGION: local
+      GLOBAL_S3_BUCKET: ${STORAGE_S3_BUCKET:-huntone}
+      ENABLE_IMAGE_TRANSFORMATION: "true"
+      IMAGE_TRANSFORMATION_ENABLED: "true"
+      REQUEST_ALLOW_X_INIT_HEADERS: "x-upsert"
+    volumes:
+      - storage_data:/var/lib/storage
+    networks:
+      - huntone
+
+  # ── Realtime ─────────────────────────────────────────────────────────────
+  realtime:
+    image: supabase/realtime:v2.33.66
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: supabase_realtime_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+      DB_AFTER_CONNECT_QUERY: "SET search_path TO _realtime"
+      DB_ENC_KEY: supabaserealtime
+      API_JWT_SECRET: ${JWT_SECRET}
+      SECRET_KEY_BASE: ${JWT_SECRET}
+      FLY_ALLOC_ID: fly123
+      FLY_APP_NAME: huntone_realtime
+      ERL_AFLAGS: "-proto_dist inet_tcp"
+      ENABLE_TAILSCALE: "false"
+      DNS_NODES: "''"
+    networks:
+      - huntone
+
+  # ── Kong API Gateway ─────────────────────────────────────────────────────
+  kong:
+    image: kong:3.7
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_started
+      rest:
+        condition: service_started
+      storage:
+        condition: service_started
+      realtime:
+        condition: service_started
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: "64 160k"
+      KONG_NGINX_WORKER_PROCESSES: "2"
+    volumes:
+      - ./kong.yml:/var/lib/kong/kong.yml:ro
+    ports:
+      - "${KONG_HTTP_PORT:-8000}:8000/tcp"
+      - "${KONG_HTTPS_PORT:-8443}:8443/tcp"
+    networks:
+      - huntone
+
+  # ── Studio (Admin Dashboard) ─────────────────────────────────────────────
+  studio:
+    image: supabase/studio:2025.02.17-sha-0e4b314
+    restart: unless-stopped
+    depends_on:
+      kong:
+        condition: service_started
+    environment:
+      STUDIO_PG_META_URL: http://kong:8000/pg
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION:-Huntone}
+      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT:-Huntone}
+      IS_PLATFORM: "false"
+      LOGIN_MESSAGE: "Huntone Admin"
+      LOG_FLARE_API_KEY: ""
+      LOG_FLARE_URL: ""
+      NEXT_PUBLIC_ENABLE_LOGS: "true"
+      OPENAI_API_KEY: ""
+    ports:
+      - "${STUDIO_PORT:-3000}:3000/tcp"
+    networks:
+      - huntone
+
+volumes:
+  db_data:
+  storage_data:
+
+networks:
+  huntone:
+    driver: bridge
