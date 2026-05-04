@@ -1,0 +1,15 @@
+# Docker
+docker-compose.override.yml
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Volumes
+data/
+storage/
+
+# OS
+.DS_Store
+Thumbs.db

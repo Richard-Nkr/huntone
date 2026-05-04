@@ -1,9 +1,7 @@
-import CloudKit
 import SwiftUI
 
 @MainActor
 final class SocialViewModel: ObservableObject {
-    @Published private(set) var accountStatus: CKAccountStatus = .couldNotDetermine
     @Published private(set) var currentUser: HuntoneUser?
     @Published private(set) var searchResults: [HuntoneUser] = []
     @Published private(set) var friends: [HuntoneUser] = []
@@ -15,57 +13,81 @@ final class SocialViewModel: ObservableObject {
     @Published var publishCaption: String = ""
     @Published var statusMessage: String?
     @Published var isLoading = false
+    @Published var isSignedIn = false
+    @Published var email: String = ""
+    @Published var password: String = ""
 
-    private let service: CloudKitService
+    private let service: SupabaseService
 
-    init(service: CloudKitService = .shared) {
+    init(service: SupabaseService = .shared) {
         self.service = service
     }
 
     var isReady: Bool {
-        accountStatus == .available && currentUser != nil
+        isSignedIn && currentUser != nil
     }
 
-    var accountStatusLabel: String {
-        switch accountStatus {
-        case .available:
-            return "iCloud connecte"
-        case .noAccount:
-            return "Aucun compte iCloud"
-        case .restricted:
-            return "iCloud restreint"
-        case .couldNotDetermine:
-            return "Verification iCloud"
-        case .temporarilyUnavailable:
-            return "iCloud temporairement indisponible"
-        @unknown default:
-            return "Statut iCloud inconnu"
+    // MARK: - Auth
+
+    func signUp() async {
+        await runLoadingTask {
+            let (user, token) = try await service.signUp(
+                email: email,
+                password: password,
+                username: username,
+                displayName: displayName
+            )
+            service.setAccessToken(token)
+            currentUser = user
+            isSignedIn = true
+            username = user.username
+            displayName = user.displayName
+            statusMessage = "Compte cree et connecte."
+        }
+    }
+
+    func signIn() async {
+        await runLoadingTask {
+            let (user, token) = try await service.signIn(email: email, password: password)
+            service.setAccessToken(token)
+            currentUser = user
+            isSignedIn = true
+            username = user.username
+            displayName = user.displayName
+            statusMessage = "Connecte."
         }
     }
 
     func refresh() async {
         await runLoadingTask {
-            accountStatus = try await service.accountStatus()
+            if let token = loadToken() {
+                service.setAccessToken(token)
+                isSignedIn = true
+            }
+
             currentUser = try await service.fetchCurrentProfile()
 
             if let currentUser {
                 username = currentUser.username
                 displayName = currentUser.displayName
-                try await refreshRelationships(for: currentUser)
+                isSignedIn = true
+                try await refreshRelationships()
             }
 
-            remoteFrames = try await service.fetchLatestFrames()
+            remoteFrames = try await service.fetchFeed()
         }
     }
 
     func saveProfile() async {
         await runLoadingTask {
-            let fallbackDisplayName = displayName.isEmpty ? username : displayName
-            let user = try await service.upsertCurrentProfile(username: username, displayName: fallbackDisplayName)
+            let user = try await service.upsertProfile(
+                username: username,
+                displayName: displayName.isEmpty ? username : displayName
+            )
             currentUser = user
             username = user.username
             displayName = user.displayName
-            try await refreshRelationships(for: user)
+            try await refreshRelationships()
             statusMessage = "Profil sauvegarde."
         }
     }
@@ -78,11 +100,7 @@ final class SocialViewModel: ObservableObject {
 
     func sendFriendRequest(to user: HuntoneUser) async {
         await runLoadingTask {
-            guard let currentUser else {
-                throw HuntoneBackendError.profileMissing
-            }
-
-            try await service.sendFriendRequest(to: user, from: currentUser)
+            try await service.sendFriendRequest(to: user)
             statusMessage = "Demande envoyee a @\(user.username)."
         }
     }
@@ -90,11 +108,7 @@ final class SocialViewModel: ObservableObject {
     func accept(_ request: FriendRequest) async {
         await runLoadingTask {
             try await service.acceptFriendRequest(request)
-
-            if let currentUser {
-                try await refreshRelationships(for: currentUser)
-            }
-
+            try await refreshRelationships()
             statusMessage = "Ami ajoute."
         }
     }
@@ -114,18 +128,30 @@ final class SocialViewModel: ObservableObject {
             )
 
             publishCaption = ""
-            remoteFrames = try await service.fetchLatestFrames()
+            remoteFrames = try await service.fetchFeed()
             statusMessage = "Frame publie."
         }
     }
 
-    private func refreshRelationships(for user: HuntoneUser) async throws {
-        incomingRequests = try await service.fetchIncomingRequests(for: user.id)
-        let friendships = try await service.fetchFriendships(for: user.id)
-        let friendIds = friendships.map { friendship in
-            friendship.requesterId == user.id ? friendship.addresseeId : friendship.requesterId
+    // MARK: - Likes
+
+    func likeFrame(_ frameId: String) async {
+        await runLoadingTask {
+            try await service.likeFrame(frameId)
         }
-        friends = try await service.fetchUsers(ids: friendIds)
+    }
+
+    func unlikeFrame(_ frameId: String) async {
+        await runLoadingTask {
+            try await service.unlikeFrame(frameId)
+        }
+    }
+
+    // MARK: - Private
+
+    private func refreshRelationships() async throws {
+        incomingRequests = try await service.fetchIncomingRequests()
+        friends = try await service.fetchFriends()
     }
 
     private func runLoadingTask(_ task: () async throws -> Void) async {
@@ -137,5 +163,13 @@ final class SocialViewModel: ObservableObject {
         } catch {
             statusMessage = error.localizedDescription
         }
+    }
+
+    private func saveToken(_ token: String) {
+        UserDefaults.standard.set(token, forKey: "huntone.auth.token")
+    }
+
+    private func loadToken() -> String? {
+        UserDefaults.standard.string(forKey: "huntone.auth.token")
     }
 }

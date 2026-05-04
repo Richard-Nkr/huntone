@@ -54,31 +54,80 @@ struct SocialView: View {
         VStack(alignment: .leading, spacing: 14) {
             sectionTitle("COMPTE")
 
-            Text(socialViewModel.accountStatusLabel.uppercased())
-                .font(.custom("ClashDisplay-Medium", size: 11))
-                .foregroundColor(Color(UIColor.systemGray))
+            if socialViewModel.isSignedIn {
+                Text("CONNECTE")
+                    .font(.custom("ClashDisplay-Medium", size: 11))
+                    .foregroundColor(Color(UIColor.systemGray))
 
-            TextField("username", text: $socialViewModel.username)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .textFieldStyle(.plain)
-                .padding(14)
-                .background(Color(UIColor.systemGray6))
+                TextField("username", text: $socialViewModel.username)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .textFieldStyle(.plain)
+                    .padding(14)
+                    .background(Color(UIColor.systemGray6))
 
-            TextField("Nom affiche", text: $socialViewModel.displayName)
-                .textFieldStyle(.plain)
-                .padding(14)
-                .background(Color(UIColor.systemGray6))
+                TextField("Nom affiche", text: $socialViewModel.displayName)
+                    .textFieldStyle(.plain)
+                    .padding(14)
+                    .background(Color(UIColor.systemGray6))
 
-            Button {
-                Task { await socialViewModel.saveProfile() }
-            } label: {
-                Text("SAUVEGARDER PROFIL")
-                    .font(.custom("ClashDisplay-Bold", size: 13))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .foregroundColor(.white)
-                    .background(Color.black)
+                Button {
+                    Task { await socialViewModel.saveProfile() }
+                } label: {
+                    Text("SAUVEGARDER PROFIL")
+                        .font(.custom("ClashDisplay-Bold", size: 13))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .foregroundColor(.white)
+                        .background(Color.black)
+                }
+            } else {
+                TextField("Email", text: $socialViewModel.email)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.emailAddress)
+                    .textFieldStyle(.plain)
+                    .padding(14)
+                    .background(Color(UIColor.systemGray6))
+
+                SecureField("Mot de passe", text: $socialViewModel.password)
+                    .textFieldStyle(.plain)
+                    .padding(14)
+                    .background(Color(UIColor.systemGray6))
+
+                TextField("username", text: $socialViewModel.username)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .textFieldStyle(.plain)
+                    .padding(14)
+                    .background(Color(UIColor.systemGray6))
+
+                HStack(spacing: 10) {
+                    Button {
+                        Task { await socialViewModel.signIn() }
+                    } label: {
+                        Text("CONNEXION")
+                            .font(.custom("ClashDisplay-Bold", size: 13))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .foregroundColor(.white)
+                            .background(Color.black)
+                    }
+
+                    Button {
+                        Task { await socialViewModel.signUp() }
+                    } label: {
+                        Text("INSCRIPTION")
+                            .font(.custom("ClashDisplay-Bold", size: 13))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .foregroundColor(.black)
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color.black, lineWidth: 1.5)
+                            )
+                    }
+                }
             }
 
             if let statusMessage = socialViewModel.statusMessage {
