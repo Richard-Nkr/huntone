@@ -239,7 +239,9 @@ enum ProfileTabType: String, CaseIterable {
 
 struct ProfileView: View {
     @EnvironmentObject private var viewModel: HuntoneViewModel
+    @EnvironmentObject private var supabase: SupabaseService
     @State private var selectedTab: ProfileTabType = .grids
+    @State private var isShowingSupabaseAuth = false
     
     var body: some View {
         NavigationStack {
@@ -354,11 +356,63 @@ struct ProfileView: View {
 
     private var socialContent: some View {
         VStack(spacing: 32) {
+            // ── Supabase ──────────────────────────────────────
+            VStack(alignment: .leading, spacing: 12) {
+                Text("SUPABASE")
+                    .font(.custom("ClashDisplay-Bold", size: 12))
+                    .foregroundColor(.black)
+
+                if supabase.isAuthenticated, let profile = supabase.currentProfile {
+                    HStack(spacing: 16) {
+                        Circle()
+                            .fill(Color.black)
+                            .frame(width: 48, height: 48)
+                            .overlay(
+                                Text(String(profile.username.prefix(1)).uppercased())
+                                    .font(.custom("ClashDisplay-Bold", size: 18))
+                                    .foregroundColor(.white)
+                            )
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("@\(profile.username)")
+                                .font(.custom("ClashDisplay-Bold", size: 16))
+                                .foregroundColor(.black)
+                            Text("Connecté · \(supabase.friends.count) amis")
+                                .font(.custom("ClashDisplay-Medium", size: 12))
+                                .foregroundColor(Color(UIColor.systemGray))
+                        }
+                        Spacer()
+                        Button("Déco") {
+                            Task { try? await supabase.signOut() }
+                        }
+                        .font(.custom("ClashDisplay-Bold", size: 11))
+                        .foregroundColor(.red)
+                    }
+                } else {
+                    Button {
+                        isShowingSupabaseAuth = true
+                    } label: {
+                        Text("CONNECTER AVEC SUPABASE")
+                            .font(.custom("ClashDisplay-Bold", size: 12))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.black)
+                    }
+                }
+            }
+
+            Divider()
+
+            // ── CloudKit Social ──────────────────────────────
             SocialUserRow(username: "richaskip", subtitle: "24 grilles communes", isFollowing: true)
             SocialUserRow(username: "julien", subtitle: "Nouveau sur Huntone", isFollowing: false)
             SocialUserRow(username: "alexis", subtitle: "12 amis en commun", isFollowing: false)
         }
         .padding(.top, 16)
+        .sheet(isPresented: $isShowingSupabaseAuth) {
+            SupabaseAuthView()
+        }
     }
 }
 
