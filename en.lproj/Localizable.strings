@@ -1,0 +1,97 @@
+/* Huntone - English Localization */
+
+// ── Auth ─────────────────────────────────────────────────────────────────
+"auth.sign_in_title" = "SIGN IN";
+"auth.sign_up_title" = "CREATE ACCOUNT";
+"auth.sign_up_subtitle" = "Join the color hunt.";
+"auth.sign_in_subtitle" = "Find your frames and friends.";
+"auth.continue_apple" = "Continue with Apple";
+"auth.continue_google" = "Continue with Google";
+"auth.continue_email" = "Continue with email";
+"auth.email_placeholder" = "Email";
+"auth.password_placeholder" = "Password";
+"auth.username_placeholder" = "Username";
+"auth.display_name_placeholder" = "Display name";
+"auth.sign_up_button" = "CREATE ACCOUNT";
+"auth.sign_in_button" = "SIGN IN";
+"auth.no_account" = "No account?";
+"auth.has_account" = "Already have an account?";
+"auth.sign_up_link" = "Sign up";
+"auth.sign_in_link" = "Sign in";
+"auth.return" = "Back";
+"auth.skip_debug" = "Skip auth (debug)";
+
+// ── Onboarding ────────────────────────────────────────────────────────────
+"onboarding.welcome" = "WELCOME";
+"onboarding.title" = "Create your\nHuntone identity";
+"onboarding.subtitle" = "Pick a unique username. You can change it later.";
+"onboarding.username_label" = "USERNAME";
+"onboarding.username_placeholder" = "yourusername";
+"onboarding.display_name_label" = "DISPLAY NAME";
+"onboarding.display_name_placeholder" = "Your name";
+"onboarding.bio_label" = "BIO (OPTIONAL)";
+"onboarding.bio_placeholder" = "Describe yourself in a few words...";
+"onboarding.submit_button" = "ENTER HUNTONE";
+"onboarding.edit_later" = "You can edit this info in your profile.";
+"onboarding.username_taken" = "This username is already taken.";
+
+// ── Tutorial (How to use) ──────────────────────────────────────────────────
+"tutorial.skip" = "Skip";
+"tutorial.next" = "NEXT";
+"tutorial.start" = "GET STARTED";
+"tutorial.step1_title" = "ONE COLOR\nA DAY";
+"tutorial.step1_body" = "Every day, Huntone gives you a new color. That's your theme, your mission: open your eyes and hunt for it around you, in your city.";
+"tutorial.step2_title" = "9 PHOTOS,\n1 COLOR";
+"tutorial.step2_body" = "Build a 3×3 grid of 9 photos. Each shot must embody the daily color. Use your camera or library, then crop each photo into the perfect frame.";
+"tutorial.step3_title" = "YOUR EYE,\nYOUR CITY";
+"tutorial.step3_body" = "Add your city and your camera. Every grid tells the story of how you see the world. Once all 9 slots are filled, validate and share.";
+"tutorial.step4_title" = "THE COLOR\nCOMMUNITY";
+"tutorial.step4_body" = "Discover other color hunters' grids. Like, comment, connect. Add friends and compare how you each see the world through a single color.";
+
+// ── Feed ──────────────────────────────────────────────────────────────────
+"feed.title" = "Huntone";
+"feed.today" = "TODAY";
+
+// ── Profile ───────────────────────────────────────────────────────────────
+"profile.title" = "PROFILE";
+"profile.grids_tab" = "GRIDS";
+"profile.social_tab" = "SOCIAL";
+"profile.stats_grids" = "Grids";
+"profile.stats_friends" = "Friends";
+"profile.stats_posts" = "Posts";
+"profile.bio" = "Daily color hunter.";
+"profile.edit_button" = "EDIT PROFILE";
+"profile.logout_button" = "LOG OUT";
+"profile.no_grids" = "No grids have been created yet.";
+"profile.friends_empty" = "Add friends to see their frames.";
+"profile.friends_title" = "FRIENDS";
+"profile.discover_title" = "DISCOVER";
+
+// ── Challenge (Create Grid) ───────────────────────────────────────────────
+"challenge.title" = "DAILY COLOR";
+"challenge.export_button" = "VALIDATE";
+"challenge.ready" = "READY TO SHARE.";
+"challenge.selected" = "SELECTED";
+"challenge.camera" = "Camera";
+"challenge.choose_photos" = "Choose from Photos";
+"challenge.delete" = "Delete";
+"challenge.cancel" = "Cancel";
+"challenge.city_placeholder" = "City";
+
+// ── Crop ──────────────────────────────────────────────────────────────────
+"crop.cancel" = "Cancel";
+"crop.confirm" = "Crop";
+
+// ── Splash ────────────────────────────────────────────────────────────────
+"splash.tagline" = "See the world in a single color";
+
+// ── Supabase Service ──────────────────────────────────────────────────────
+"service.request_sent" = "Request sent to @%@";
+"service.friend_added" = "Friend added.";
+"service.not_authenticated" = "Sign in to your Huntone account first.";
+"service.image_encoding_failed" = "Could not prepare images for upload.";
+"service.upload_failed" = "Upload to Supabase Storage failed.";
+"service.invalid_response" = "Invalid server response.";
+
+// ── Frame Post Dialog ─────────────────────────────────────────────────────
+"post.photo" = "Photo %d";

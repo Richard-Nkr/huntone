@@ -46,6 +46,8 @@ struct SBFramePost: Codable, Identifiable, Equatable {
     let colorHex: String
     let caption: String
     let createdAt: String?
+    var likesCount: Int?
+    var userHasLiked: Bool?
     /// URLs des 9 images stockées dans Supabase Storage
     var imageUrls: [String]?
 
@@ -58,7 +60,25 @@ struct SBFramePost: Codable, Identifiable, Equatable {
         case colorHex = "color_hex"
         case caption
         case createdAt = "created_at"
+        case likesCount = "likes_count"
+        case userHasLiked = "user_has_liked"
         case imageUrls = "image_urls"
+    }
+}
+
+struct SBComment: Codable, Identifiable, Equatable {
+    let id: String?
+    let frameId: Int
+    let userId: String
+    let body: String
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case frameId = "frame_id"
+        case userId = "user_id"
+        case body
+        case createdAt = "created_at"
     }
 }
 
@@ -72,14 +92,18 @@ final class SupabaseService: ObservableObject {
 
     // MARK: - État publié
 
-    @Published private(set) var isAuthenticated = false
+    @Published var isAuthenticated = false
+    @Published private(set) var isLoading = true
+    @Published private(set) var needsOnboarding = false
+    @Published var needsTutorial = false
     @Published private(set) var currentProfile: SBProfile?
     @Published private(set) var friends: [SBProfile] = []
     @Published private(set) var incomingRequests: [SBFriendship] = []
     @Published private(set) var feedFrames: [SBFramePost] = []
+    @Published private(set) var comments: [SBComment] = []
     @Published private(set) var searchResults: [SBProfile] = []
     @Published var statusMessage: String?
-    @Published var isLoading = false
+    @Published var taskLoading = false
 
     // MARK: - Endpoints Supabase
 
@@ -95,8 +119,8 @@ final class SupabaseService: ObservableObject {
 
     // MARK: - Helpers HTTP
 
-    private var restURL: String { "\(baseURL)/rest/v1" }
-    private var authURL: String { "\(baseURL)/auth/v1" }
+    var restURL: String { "\(baseURL)/rest/v1" }
+    var authURL: String { "\(baseURL)/auth/v1" }
     private var storageURL: String { "\(baseURL)/storage/v1" }
 
     private var defaultHeaders: [String: String] {
@@ -135,7 +159,7 @@ final class SupabaseService: ObservableObject {
         let (data, _) = try await post(path: "/auth/v1/signup", body: body, isAuth: true)
         let session = try JSONDecoder().decode(SBAuthSession.self, from: data)
         saveSession(session)
-        // Le trigger SQL crée le profil automatiquement
+        needsOnboarding = false
         try await refreshProfile()
     }
 
@@ -145,20 +169,116 @@ final class SupabaseService: ObservableObject {
         let session = try JSONDecoder().decode(SBAuthSession.self, from: data)
         saveSession(session)
         try await refreshProfile()
+        checkOnboarding()
     }
 
-    func signOut() async throws {
+    func signOut() async {
         let token = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).accessToken") ?? ""
-        _ = try await post(path: "/auth/v1/logout", body: [:], isAuth: true, token: token)
+        _ = try? await post(path: "/auth/v1/logout", body: [:], isAuth: true, token: token)
         clearSession()
     }
 
+    // MARK: - OAuth (Apple / Google)
+
+    func signInWithApple(idToken: String) async throws {
+        let body: [String: Any] = [
+            "id_token": idToken,
+            "provider": "apple",
+            "grant_type": "id_token"
+        ]
+        let (data, _) = try await post(path: "/auth/v1/token?grant_type=id_token", body: body, isAuth: true)
+        let session = try JSONDecoder().decode(SBAuthSession.self, from: data)
+        saveSession(session)
+        try await refreshProfile()
+        checkOnboarding()
+    }
+
+    func signInWithGoogle(idToken: String) async throws {
+        let body: [String: Any] = [
+            "id_token": idToken,
+            "provider": "google",
+            "grant_type": "id_token"
+        ]
+        let (data, _) = try await post(path: "/auth/v1/token?grant_type=id_token", body: body, isAuth: true)
+        let session = try JSONDecoder().decode(SBAuthSession.self, from: data)
+        saveSession(session)
+        try await refreshProfile()
+        checkOnboarding()
+    }
+
+    func getOAuthURL(provider: String) -> URL {
+        URL(string: "\(authURL)/authorize?provider=\(provider)&redirect_to=huntone://auth/callback")!
+    }
+
+    // MARK: - Onboarding
+
+    func checkOnboarding() {
+        if let profile = currentProfile {
+            needsOnboarding = profile.username.hasPrefix("user_")
+        } else {
+            needsOnboarding = true
+        }
+    }
+
+    func completeOnboarding(username: String, displayName: String) async throws {
+        #if DEBUG
+        if let token = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).accessToken"),
+           token == "debug-token" {
+            currentProfile = SBProfile(
+                id: currentProfile?.id ?? UUID().uuidString,
+                username: username,
+                displayName: displayName,
+                createdAt: "",
+                updatedAt: nil
+            )
+            needsOnboarding = false
+            return
+        }
+        #endif
+
+        let user = try await upsertProfile(username: username, displayName: displayName)
+        currentProfile = user
+        needsOnboarding = false
+    }
+
+#if DEBUG
+    func signInDebug() {
+        let debugId = UUID().uuidString
+        currentProfile = SBProfile(
+            id: debugId,
+            username: "user_\(String(debugId.prefix(8)))",
+            displayName: "",
+            createdAt: "",
+            updatedAt: nil
+        )
+        UserDefaults.standard.set("debug-token", forKey: "\(SupabaseConfig.defaultsPrefix).accessToken")
+        UserDefaults.standard.set(debugId, forKey: "\(SupabaseConfig.defaultsPrefix).userId")
+        isAuthenticated = true
+        isLoading = false
+        needsOnboarding = currentProfile!.username.hasPrefix("user_")
+    }
+#endif
+
     func restoreSession() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        #if DEBUG
+        if let token = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).accessToken"),
+           token == "debug-token",
+           let debugId = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).userId") {
+            currentProfile = SBProfile(id: debugId, username: "debug_user", displayName: "Debug User", createdAt: "", updatedAt: nil)
+            isAuthenticated = true
+            needsOnboarding = false
+            return
+        }
+        #endif
+
         guard let token = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).accessToken"),
               !token.isEmpty else { return }
-        // Vérifie que le token est encore valide
         do {
             try await refreshProfile()
+            checkOnboarding()
         } catch {
             clearSession()
         }
@@ -227,7 +347,7 @@ final class SupabaseService: ObservableObject {
             "status": "pending"
         ]
         _ = try await post(path: "/friendships", body: body, extraHeaders: ["Prefer": "return=minimal"])
-        statusMessage = "Demande envoyée à @\(profile.username)."
+        statusMessage = String(format: String(localized: "service.request_sent"), profile.username)
     }
 
     func acceptFriendRequest(_ friendship: SBFriendship) async throws {
@@ -235,7 +355,7 @@ final class SupabaseService: ObservableObject {
         let body = ["status": "accepted"]
         _ = try await patch(path: "/friendships?id=eq.\(id)", body: body)
         try await refreshFriendships()
-        statusMessage = "Ami ajouté."
+        statusMessage = String(localized: "service.friend_added")
     }
 
     func fetchIncomingRequests() async throws -> [SBFriendship] {
@@ -311,6 +431,34 @@ final class SupabaseService: ObservableObject {
         return frames
     }
 
+    // MARK: - Likes
+
+    func likeFrame(frameId: Int) async throws {
+        let userId = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).userId") ?? ""
+        let body: [String: Any] = ["frame_id": frameId, "user_id": userId]
+        _ = try await post(path: "/frame_likes", body: body, extraHeaders: ["Prefer": "return=minimal"])
+    }
+
+    func unlikeFrame(frameId: Int) async throws {
+        let userId = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).userId") ?? ""
+        _ = try await delete(path: "/frame_likes?frame_id=eq.\(frameId)&user_id=eq.\(userId)")
+    }
+
+    // MARK: - Comments
+
+    func postComment(frameId: Int, body: String) async throws {
+        let userId = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).userId") ?? ""
+        let comment: [String: Any] = ["frame_id": frameId, "user_id": userId, "body": body]
+        _ = try await post(path: "/frame_comments", body: comment, extraHeaders: ["Prefer": "return=minimal"])
+    }
+
+    func fetchComments(frameId: Int) async throws -> [SBComment] {
+        let (data, _) = try await get(path: "/frame_comments?frame_id=eq.\(frameId)&select=*&order=created_at.asc")
+        let result = try JSONDecoder().decode([SBComment].self, from: data)
+        comments = result
+        return result
+    }
+
     // MARK: - Storage (upload)
 
     private func uploadImage(_ image: UIImage, path: String) async throws -> String {
@@ -354,6 +502,7 @@ final class SupabaseService: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "\(SupabaseConfig.defaultsPrefix).refreshToken")
         UserDefaults.standard.removeObject(forKey: "\(SupabaseConfig.defaultsPrefix).userId")
         isAuthenticated = false
+        needsOnboarding = false
         currentProfile = nil
         friends = []
         incomingRequests = []
@@ -418,6 +567,17 @@ final class SupabaseService: ObservableObject {
         }
         return (data, http)
     }
+
+    private func delete(path: String) async throws -> (Data, HTTPURLResponse) {
+        var req = URLRequest(url: URL(string: "\(restURL)\(path)")!)
+        req.httpMethod = "DELETE"
+        req.allHTTPHeaderFields = defaultHeaders
+        let (data, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse else {
+            throw SBError.invalidResponse
+        }
+        return (data, http)
+    }
 }
 
 // MARK: - Auth Models
@@ -452,15 +612,15 @@ enum SBError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notAuthenticated:
-            return "Connecte-toi d'abord à ton compte Huntone."
+            return String(localized: "service.not_authenticated")
         case .incompleteFrame:
             return "Le frame doit contenir 9 photos avant publication."
         case .imageEncodingFailed:
-            return "Impossible de préparer les images pour l'envoi."
+            return String(localized: "service.image_encoding_failed")
         case .uploadFailed:
-            return "Échec de l'upload vers Supabase Storage."
+            return String(localized: "service.upload_failed")
         case .invalidResponse:
-            return "Réponse invalide du serveur."
+            return String(localized: "service.invalid_response")
         case .decodingFailed(let detail):
             return "Erreur de parsing: \(detail)"
         }

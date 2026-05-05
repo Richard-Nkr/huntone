@@ -1,0 +1,97 @@
+/* Huntone - French Localization */
+
+// ── Auth ─────────────────────────────────────────────────────────────────
+"auth.sign_in_title" = "CONNEXION";
+"auth.sign_up_title" = "CRÉER UN COMPTE";
+"auth.sign_up_subtitle" = "Rejoins la chasse aux couleurs.";
+"auth.sign_in_subtitle" = "Retrouve tes frames et tes amis.";
+"auth.continue_apple" = "Continuer avec Apple";
+"auth.continue_google" = "Continuer avec Google";
+"auth.continue_email" = "Continuer avec un email";
+"auth.email_placeholder" = "Email";
+"auth.password_placeholder" = "Mot de passe";
+"auth.username_placeholder" = "Username";
+"auth.display_name_placeholder" = "Nom affiché";
+"auth.sign_up_button" = "CRÉER LE COMPTE";
+"auth.sign_in_button" = "SE CONNECTER";
+"auth.no_account" = "Pas de compte ?";
+"auth.has_account" = "Déjà un compte ?";
+"auth.sign_up_link" = "S'inscrire";
+"auth.sign_in_link" = "Se connecter";
+"auth.return" = "Retour";
+"auth.skip_debug" = "Skip auth (debug)";
+
+// ── Onboarding ────────────────────────────────────────────────────────────
+"onboarding.welcome" = "BIENVENUE";
+"onboarding.title" = "Crée ton\nidentité Huntone";
+"onboarding.subtitle" = "Choisis un pseudo unique. Tu pourras le changer plus tard.";
+"onboarding.username_label" = "PSEUDO";
+"onboarding.username_placeholder" = "tonpseudo";
+"onboarding.display_name_label" = "NOM AFFICHÉ";
+"onboarding.display_name_placeholder" = "Ton nom";
+"onboarding.bio_label" = "BIO (OPTIONNEL)";
+"onboarding.bio_placeholder" = "Décris-toi en quelques mots...";
+"onboarding.submit_button" = "ENTRER DANS HUNTONE";
+"onboarding.edit_later" = "Tu pourras modifier ces infos dans ton profil.";
+"onboarding.username_taken" = "Ce pseudo est déjà pris.";
+
+// ── Tutorial (How to use) ──────────────────────────────────────────────────
+"tutorial.skip" = "Passer";
+"tutorial.next" = "SUIVANT";
+"tutorial.start" = "COMMENCER";
+"tutorial.step1_title" = "UNE COULEUR\nPAR JOUR";
+"tutorial.step1_body" = "Chaque jour, Huntone t'attribue une nouvelle couleur. C'est ton thème, ta mission : ouvre les yeux et pars à sa recherche autour de toi, dans ta ville.";
+"tutorial.step2_title" = "9 PHOTOS,\n1 COULEUR";
+"tutorial.step2_body" = "Compose une grille de 9 photos. Chaque image doit incarner la couleur du jour. Utilise ton appareil ou ta bibliothèque, puis recadre chaque photo dans le format parfait.";
+"tutorial.step3_title" = "TON ŒIL,\nTA VILLE";
+"tutorial.step3_body" = "Ajoute ta ville et ton appareil. Chaque grille raconte comment tu vois le monde. Dès que les 9 cases sont remplies, valide et partage ta création.";
+"tutorial.step4_title" = "LA CHASSE\nCOLLECTIVE";
+"tutorial.step4_body" = "Découvre les grilles des autres chasseurs de couleurs. Like, commente, connecte-toi. Ajoute des amis et comparez vos visions du monde.";
+
+// ── Feed ──────────────────────────────────────────────────────────────────
+"feed.title" = "Huntone";
+"feed.today" = "TODAY";
+
+// ── Profile ───────────────────────────────────────────────────────────────
+"profile.title" = "PROFIL";
+"profile.grids_tab" = "GRILLES";
+"profile.social_tab" = "SOCIAL";
+"profile.stats_grids" = "Grilles";
+"profile.stats_friends" = "Amis";
+"profile.stats_posts" = "Posts";
+"profile.bio" = "Chasseur de couleurs quotidien.";
+"profile.edit_button" = "ÉDITER LE PROFIL";
+"profile.logout_button" = "DÉCONNEXION";
+"profile.no_grids" = "Aucune grille n'a été créée pour le moment.";
+"profile.friends_empty" = "Ajoute des amis pour voir leurs frames.";
+"profile.friends_title" = "AMIS";
+"profile.discover_title" = "DÉCOUVRIR";
+
+// ── Challenge (Create Grid) ───────────────────────────────────────────────
+"challenge.title" = "COULEUR DU JOUR";
+"challenge.export_button" = "VALIDER";
+"challenge.ready" = "PRÊT À PARTAGER.";
+"challenge.selected" = "SÉLECTIONNÉES";
+"challenge.camera" = "Caméra";
+"challenge.choose_photos" = "Choisir dans Photos";
+"challenge.delete" = "Supprimer";
+"challenge.cancel" = "Annuler";
+"challenge.city_placeholder" = "Ville";
+
+// ── Crop ──────────────────────────────────────────────────────────────────
+"crop.cancel" = "Annuler";
+"crop.confirm" = "Rogner";
+
+// ── Splash ────────────────────────────────────────────────────────────────
+"splash.tagline" = "Vois le monde en une seule couleur";
+
+// ── Supabase Service ──────────────────────────────────────────────────────
+"service.request_sent" = "Demande envoyée à @%@";
+"service.friend_added" = "Ami ajouté.";
+"service.not_authenticated" = "Connecte-toi d'abord à ton compte Huntone.";
+"service.image_encoding_failed" = "Impossible de préparer les images pour l'envoi.";
+"service.upload_failed" = "Échec de l'upload vers Supabase Storage.";
+"service.invalid_response" = "Réponse invalide du serveur.";
+
+// ── Frame Post Dialog ─────────────────────────────────────────────────────
+"post.photo" = "Photo %d";
