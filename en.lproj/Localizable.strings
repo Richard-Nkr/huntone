@@ -22,18 +22,27 @@
 "auth.skip_debug" = "Skip auth (debug)";
 
 // ── Onboarding ────────────────────────────────────────────────────────────
-"onboarding.welcome" = "WELCOME";
-"onboarding.title" = "Create your\nHuntone identity";
-"onboarding.subtitle" = "Pick a unique username. You can change it later.";
+"onboarding.step1_title" = "Your profile\nphoto";
+"onboarding.step1_subtitle" = "A picture that looks like you. You can skip this step.";
+"onboarding.step2_title" = "Your identity";
+"onboarding.step2_subtitle" = "Pick a unique username and the name shown on your grids.";
+"onboarding.step3_title" = "A personal\ntouch";
+"onboarding.step3_subtitle" = "Describe yourself in a few words. Optional but recommended.";
 "onboarding.username_label" = "USERNAME";
 "onboarding.username_placeholder" = "yourusername";
 "onboarding.display_name_label" = "DISPLAY NAME";
 "onboarding.display_name_placeholder" = "Your name";
-"onboarding.bio_label" = "BIO (OPTIONAL)";
+"onboarding.phone_label" = "PHONE (OPTIONAL)";
+"onboarding.phone_placeholder" = "+1 555 123 4567";
+"onboarding.bio_label" = "BIO";
 "onboarding.bio_placeholder" = "Describe yourself in a few words...";
-"onboarding.submit_button" = "ENTER HUNTONE";
-"onboarding.edit_later" = "You can edit this info in your profile.";
+"onboarding.add_photo" = "Add a photo";
+"onboarding.remove_photo" = "Remove photo";
+"onboarding.next" = "NEXT";
+"onboarding.back" = "BACK";
+"onboarding.create_profile" = "CREATE MY PROFILE";
 "onboarding.username_taken" = "This username is already taken.";
+"onboarding.checking" = "Checking availability...";
 
 // ── Tutorial (How to use) ──────────────────────────────────────────────────
 "tutorial.skip" = "Skip";
@@ -51,6 +60,13 @@
 // ── Feed ──────────────────────────────────────────────────────────────────
 "feed.title" = "Huntone";
 "feed.today" = "TODAY";
+"feed.unknown_location" = "Somewhere";
+
+// ── Time ───────────────────────────────────────────────────────────────────
+"time.just_now" = "Just now";
+"time.minutes" = "%d min";
+"time.hours" = "%d h";
+"time.days" = "%d d";
 
 // ── Profile ───────────────────────────────────────────────────────────────
 "profile.title" = "PROFILE";
@@ -62,10 +78,27 @@
 "profile.bio" = "Daily color hunter.";
 "profile.edit_button" = "EDIT PROFILE";
 "profile.logout_button" = "LOG OUT";
+"profile.close" = "Close";
+"profile.delete_grid" = "Delete";
+"profile.share_button" = "Share";
+"profile.done" = "Done";
+"profile.search_placeholder" = "Search by username, phone or email...";
+"edit_profile.title" = "Edit Profile";
+"edit_profile.save" = "SAVE";
 "profile.no_grids" = "No grids have been created yet.";
 "profile.friends_empty" = "Add friends to see their frames.";
 "profile.friends_title" = "FRIENDS";
 "profile.discover_title" = "DISCOVER";
+"profile.requests_title" = "REQUESTS";
+"profile.follow_button" = "FOLLOW";
+"profile.accept_button" = "ACCEPT";
+"profile.request_pending" = "Wants to follow you";
+"profile.invite_title" = "Invite a friend";
+"profile.invite_subtitle" = "Share Huntone via message";
+"profile.invite_sheet_title" = "Invite";
+"profile.invite_description" = "Send a link to your friends so they can join the color hunt.";
+"profile.invite_share_button" = "SHARE LINK";
+"profile.invite_message" = "Join me on Huntone, the photo app that makes you see the world in one color a day.";
 
 // ── Challenge (Create Grid) ───────────────────────────────────────────────
 "challenge.title" = "DAILY COLOR";
@@ -74,7 +107,7 @@
 "challenge.selected" = "SELECTED";
 "challenge.camera" = "Camera";
 "challenge.choose_photos" = "Choose from Photos";
-"challenge.delete" = "Delete";
+"challenge.delete" = "Clear";
 "challenge.cancel" = "Cancel";
 "challenge.city_placeholder" = "City";
 
@@ -95,3 +128,8 @@
 
 // ── Frame Post Dialog ─────────────────────────────────────────────────────
 "post.photo" = "Photo %d";
+"challenge.replace_photo" = "Replace photo";
+"feed.empty" = "No hunts yet. Be the first!";
+
+// ── Save ───────────────────────────────────────────────────────────────────
+"save.success" = "Saved to Photos";

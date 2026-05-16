@@ -49,7 +49,7 @@ struct HowToUseView: View {
             HStack {
                 Spacer()
                 if currentPage < steps.count - 1 {
-                    Button(String(localized: "tutorial.skip")) {
+                    Button(loc("tutorial.skip")) {
                         skip()
                     }
                     .font(.custom("ClashDisplay-Medium", size: 13))
@@ -96,8 +96,8 @@ struct HowToUseView: View {
                     }
                 } label: {
                     Text(currentPage < steps.count - 1
-                         ? String(localized: "tutorial.next")
-                         : String(localized: "tutorial.start"))
+                         ? loc("tutorial.next")
+                         : loc("tutorial.start"))
                         .font(.custom("ClashDisplay-Bold", size: 14))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -119,16 +119,16 @@ struct HowToUseView: View {
             // Icon in a colored circle
             ZStack {
                 Circle()
-                    .fill(Color(uiColor: UIColor(hex: step.colorHex) ?? .black).opacity(0.12))
+                    .fill(Color(uiColor: UIColor(hex: step.colorHex)).opacity(0.12))
                     .frame(width: 140, height: 140)
 
                 Circle()
-                    .fill(Color(uiColor: UIColor(hex: step.colorHex) ?? .black).opacity(0.18))
+                    .fill(Color(uiColor: UIColor(hex: step.colorHex)).opacity(0.18))
                     .frame(width: 100, height: 100)
 
                 Image(systemName: step.icon)
                     .font(.system(size: 40, weight: .medium))
-                    .foregroundColor(Color(uiColor: UIColor(hex: step.colorHex) ?? .black))
+                    .foregroundColor(Color(uiColor: UIColor(hex: step.colorHex)))
             }
 
             // Title
@@ -155,23 +155,6 @@ struct HowToUseView: View {
 
     private func skip() {
         supabase.needsTutorial = false
-    }
-}
-
-// MARK: - UIColor Hex Helper
-
-private extension UIColor {
-    convenience init?(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        guard hex.count == 6 else { return nil }
-        var rgb: UInt64 = 0
-        guard Scanner(string: hex).scanHexInt64(&rgb) else { return nil }
-        self.init(
-            red: CGFloat((rgb >> 16) & 0xFF) / 255.0,
-            green: CGFloat((rgb >> 8) & 0xFF) / 255.0,
-            blue: CGFloat(rgb & 0xFF) / 255.0,
-            alpha: 1.0
-        )
     }
 }
 

@@ -22,18 +22,27 @@
 "auth.skip_debug" = "Skip auth (debug)";
 
 // ── Onboarding ────────────────────────────────────────────────────────────
-"onboarding.welcome" = "BIENVENUE";
-"onboarding.title" = "Crée ton\nidentité Huntone";
-"onboarding.subtitle" = "Choisis un pseudo unique. Tu pourras le changer plus tard.";
+"onboarding.step1_title" = "Ta photo\nde profil";
+"onboarding.step1_subtitle" = "Une image qui te ressemble. Tu peux aussi passer cette étape.";
+"onboarding.step2_title" = "Ton identité";
+"onboarding.step2_subtitle" = "Choisis un pseudo unique et le nom qui apparaîtra sur tes grilles.";
+"onboarding.step3_title" = "Une touche\nperso";
+"onboarding.step3_subtitle" = "Décris-toi en quelques mots. Optionnel, mais recommandé.";
 "onboarding.username_label" = "PSEUDO";
 "onboarding.username_placeholder" = "tonpseudo";
 "onboarding.display_name_label" = "NOM AFFICHÉ";
 "onboarding.display_name_placeholder" = "Ton nom";
-"onboarding.bio_label" = "BIO (OPTIONNEL)";
+"onboarding.phone_label" = "TÉLÉPHONE (OPTIONNEL)";
+"onboarding.phone_placeholder" = "+33 6 12 34 56 78";
+"onboarding.bio_label" = "BIO";
 "onboarding.bio_placeholder" = "Décris-toi en quelques mots...";
-"onboarding.submit_button" = "ENTRER DANS HUNTONE";
-"onboarding.edit_later" = "Tu pourras modifier ces infos dans ton profil.";
+"onboarding.add_photo" = "Ajouter une photo";
+"onboarding.remove_photo" = "Supprimer la photo";
+"onboarding.next" = "SUIVANT";
+"onboarding.back" = "RETOUR";
+"onboarding.create_profile" = "CRÉER MON PROFIL";
 "onboarding.username_taken" = "Ce pseudo est déjà pris.";
+"onboarding.checking" = "Vérification du pseudo...";
 
 // ── Tutorial (How to use) ──────────────────────────────────────────────────
 "tutorial.skip" = "Passer";
@@ -51,6 +60,13 @@
 // ── Feed ──────────────────────────────────────────────────────────────────
 "feed.title" = "Huntone";
 "feed.today" = "TODAY";
+"feed.unknown_location" = "Quelque part";
+
+// ── Time ───────────────────────────────────────────────────────────────────
+"time.just_now" = "À l'instant";
+"time.minutes" = "%d min";
+"time.hours" = "%d h";
+"time.days" = "%d j";
 
 // ── Profile ───────────────────────────────────────────────────────────────
 "profile.title" = "PROFIL";
@@ -62,10 +78,27 @@
 "profile.bio" = "Chasseur de couleurs quotidien.";
 "profile.edit_button" = "ÉDITER LE PROFIL";
 "profile.logout_button" = "DÉCONNEXION";
+"profile.close" = "Fermer";
+"profile.delete_grid" = "Supprimer";
+"profile.share_button" = "Partager";
+"profile.done" = "Terminé";
+"profile.search_placeholder" = "Rechercher par pseudo, tel ou email...";
+"edit_profile.title" = "Éditer le profil";
+"edit_profile.save" = "ENREGISTRER";
 "profile.no_grids" = "Aucune grille n'a été créée pour le moment.";
 "profile.friends_empty" = "Ajoute des amis pour voir leurs frames.";
 "profile.friends_title" = "AMIS";
 "profile.discover_title" = "DÉCOUVRIR";
+"profile.requests_title" = "DEMANDES";
+"profile.follow_button" = "SUIVRE";
+"profile.accept_button" = "ACCEPTER";
+"profile.request_pending" = "Veut te suivre";
+"profile.invite_title" = "Inviter un ami";
+"profile.invite_subtitle" = "Partage Huntone par message";
+"profile.invite_sheet_title" = "Inviter";
+"profile.invite_description" = "Envoie un lien à tes amis pour qu'ils rejoignent la chasse aux couleurs.";
+"profile.invite_share_button" = "PARTAGER LE LIEN";
+"profile.invite_message" = "Rejoins-moi sur Huntone ! Chaque jour une nouvelle couleur, 9 photos à capturer autour de toi. Une chasse photo quotidienne pour voir le monde autrement. 🌈📸";
 
 // ── Challenge (Create Grid) ───────────────────────────────────────────────
 "challenge.title" = "COULEUR DU JOUR";
@@ -74,7 +107,7 @@
 "challenge.selected" = "SÉLECTIONNÉES";
 "challenge.camera" = "Caméra";
 "challenge.choose_photos" = "Choisir dans Photos";
-"challenge.delete" = "Supprimer";
+"challenge.delete" = "Effacer";
 "challenge.cancel" = "Annuler";
 "challenge.city_placeholder" = "Ville";
 
@@ -95,3 +128,8 @@
 
 // ── Frame Post Dialog ─────────────────────────────────────────────────────
 "post.photo" = "Photo %d";
+"challenge.replace_photo" = "Remplacer la photo";
+"feed.empty" = "Aucune chasse pour le moment. Sois le premier !";
+
+// ── Save ───────────────────────────────────────────────────────────────────
+"save.success" = "Enregistré dans Photos";

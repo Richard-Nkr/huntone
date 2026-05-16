@@ -7,15 +7,21 @@ struct SBProfile: Codable, Identifiable, Equatable {
     let id: String
     var username: String
     var displayName: String
+    let colorSeed: String
     let createdAt: String
     var updatedAt: String?
+    var avatarURL: String?
+    var phone: String?
 
     enum CodingKeys: String, CodingKey {
         case id
         case username
         case displayName = "display_name"
+        case colorSeed = "color_seed"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case avatarURL = "avatar_url"
+        case phone
     }
 }
 
@@ -40,7 +46,7 @@ struct SBFriendship: Codable, Identifiable, Equatable {
 struct SBFramePost: Codable, Identifiable, Equatable {
     let id: Int?
     let ownerId: String
-    let ownerName: String
+    var ownerName: String
     let dateKey: String
     let colorName: String
     let colorHex: String
@@ -50,6 +56,9 @@ struct SBFramePost: Codable, Identifiable, Equatable {
     var userHasLiked: Bool?
     /// URLs des 9 images stockées dans Supabase Storage
     var imageUrls: [String]?
+    /// Transforms for each image: [{ox, oy, scale}, ...]
+    var imageTransforms: [SBImageTransform]?
+    var ownerAvatarURL: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -63,7 +72,15 @@ struct SBFramePost: Codable, Identifiable, Equatable {
         case likesCount = "likes_count"
         case userHasLiked = "user_has_liked"
         case imageUrls = "image_urls"
+        case imageTransforms = "image_transforms"
+        case ownerAvatarURL = "owner_avatar_url"
     }
+}
+
+struct SBImageTransform: Codable, Equatable {
+    let ox: Double
+    let oy: Double
+    let scale: Double
 }
 
 struct SBComment: Codable, Identifiable, Equatable {
@@ -101,7 +118,7 @@ final class SupabaseService: ObservableObject {
     @Published private(set) var incomingRequests: [SBFriendship] = []
     @Published private(set) var feedFrames: [SBFramePost] = []
     @Published private(set) var comments: [SBComment] = []
-    @Published private(set) var searchResults: [SBProfile] = []
+    @Published var searchResults: [SBProfile] = []
     @Published var statusMessage: String?
     @Published var taskLoading = false
 
@@ -135,7 +152,7 @@ final class SupabaseService: ObservableObject {
     }
 
     private func request(_ method: String, path: String, body: Data? = nil, extraHeaders: [String: String] = [:]) async throws -> (Data, HTTPURLResponse) {
-        var urlString = "\(restURL)\(path)"
+        let urlString = "\(restURL)\(path)"
         var req = URLRequest(url: URL(string: urlString)!)
         req.httpMethod = method
         req.allHTTPHeaderFields = defaultHeaders.merging(extraHeaders) { _, new in new }
@@ -143,6 +160,9 @@ final class SupabaseService: ObservableObject {
 
         let (data, response) = try await session.data(for: req)
         guard let http = response as? HTTPURLResponse else {
+            throw SBError.invalidResponse
+        }
+        guard (200...299).contains(http.statusCode) else {
             throw SBError.invalidResponse
         }
         return (data, http)
@@ -160,7 +180,7 @@ final class SupabaseService: ObservableObject {
         let session = try JSONDecoder().decode(SBAuthSession.self, from: data)
         saveSession(session)
         needsOnboarding = false
-        try await refreshProfile()
+        _ = try? await fetchProfile()
     }
 
     func signIn(email: String, password: String) async throws {
@@ -168,8 +188,7 @@ final class SupabaseService: ObservableObject {
         let (data, _) = try await post(path: "/auth/v1/token?grant_type=password", body: body, isAuth: true)
         let session = try JSONDecoder().decode(SBAuthSession.self, from: data)
         saveSession(session)
-        try await refreshProfile()
-        checkOnboarding()
+        await resolveAccountState()
     }
 
     func signOut() async {
@@ -180,106 +199,174 @@ final class SupabaseService: ObservableObject {
 
     // MARK: - OAuth (Apple / Google)
 
-    func signInWithApple(idToken: String) async throws {
-        let body: [String: Any] = [
+    func signInWithApple(idToken: String, nonce: String? = nil) async throws {
+        var body: [String: Any] = [
             "id_token": idToken,
-            "provider": "apple",
-            "grant_type": "id_token"
+            "provider": "apple"
         ]
+        if let nonce {
+            body["nonce"] = nonce
+        }
         let (data, _) = try await post(path: "/auth/v1/token?grant_type=id_token", body: body, isAuth: true)
         let session = try JSONDecoder().decode(SBAuthSession.self, from: data)
         saveSession(session)
-        try await refreshProfile()
-        checkOnboarding()
+        await resolveAccountState()
     }
 
     func signInWithGoogle(idToken: String) async throws {
         let body: [String: Any] = [
             "id_token": idToken,
-            "provider": "google",
-            "grant_type": "id_token"
+            "provider": "google"
         ]
         let (data, _) = try await post(path: "/auth/v1/token?grant_type=id_token", body: body, isAuth: true)
         let session = try JSONDecoder().decode(SBAuthSession.self, from: data)
         saveSession(session)
-        try await refreshProfile()
-        checkOnboarding()
+        await resolveAccountState()
+    }
+
+    private func resolveAccountState() async {
+        if let profile = try? await fetchProfile() {
+            // Profil existant : nouveau si username auto-généré, sinon compte existant
+            needsOnboarding = profile.username.hasPrefix("user_")
+            needsTutorial = false
+        } else {
+            // Aucun profil trouvé : nouvel utilisateur
+            needsOnboarding = true
+        }
     }
 
     func getOAuthURL(provider: String) -> URL {
         URL(string: "\(authURL)/authorize?provider=\(provider)&redirect_to=huntone://auth/callback")!
     }
 
+    func handleOAuthCallback(url: URL) async throws {
+        guard let fragment = url.fragment ?? url.query else {
+            throw SBError.invalidResponse
+        }
+
+        let params = fragment
+            .components(separatedBy: "&")
+            .reduce(into: [String: String]()) { dict, pair in
+                let kv = pair.components(separatedBy: "=")
+                if kv.count == 2 { dict[kv[0]] = kv[1] }
+            }
+
+        guard let accessToken = params["access_token"],
+              let refreshToken = params["refresh_token"] else {
+            throw SBError.notAuthenticated
+        }
+
+        saveTokens(accessToken: accessToken, refreshToken: refreshToken)
+
+        let userId = try await fetchAuthUserId(accessToken: accessToken)
+        UserDefaults.standard.set(userId, forKey: "\(SupabaseConfig.defaultsPrefix).userId")
+        isAuthenticated = true
+
+        _ = try? await fetchProfile()
+        await resolveAccountState()
+    }
+
+    private func fetchAuthUserId(accessToken: String) async throws -> String {
+        var req = URLRequest(url: URL(string: "\(authURL)/user")!)
+        req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
+
+        let (data, _) = try await session.data(for: req)
+        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let id = json["id"] as? String {
+            return id
+        }
+        throw SBError.invalidResponse
+    }
+
+    private func saveTokens(accessToken: String, refreshToken: String) {
+        UserDefaults.standard.set(accessToken, forKey: "\(SupabaseConfig.defaultsPrefix).accessToken")
+        UserDefaults.standard.set(refreshToken, forKey: "\(SupabaseConfig.defaultsPrefix).refreshToken")
+    }
+
     // MARK: - Onboarding
 
-    func checkOnboarding() {
-        if let profile = currentProfile {
-            needsOnboarding = profile.username.hasPrefix("user_")
-        } else {
-            needsOnboarding = true
+    func completeOnboarding(username: String, displayName: String = "", bio: String = "", avatarImage: UIImage? = nil, phone: String = "") async throws {
+        var avatarURL: String? = nil
+        if let avatarImage {
+            avatarURL = try await uploadAvatar(avatarImage)
         }
-    }
 
-    func completeOnboarding(username: String, displayName: String) async throws {
-        #if DEBUG
-        if let token = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).accessToken"),
-           token == "debug-token" {
-            currentProfile = SBProfile(
-                id: currentProfile?.id ?? UUID().uuidString,
-                username: username,
-                displayName: displayName,
-                createdAt: "",
-                updatedAt: nil
-            )
-            needsOnboarding = false
-            return
-        }
-        #endif
+        let finalDisplayName = displayName.trimmingCharacters(in: .whitespaces).isEmpty
+            ? username
+            : displayName
+        let cleanUsername = username
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
 
-        let user = try await upsertProfile(username: username, displayName: displayName)
-        currentProfile = user
+        _ = try await upsertProfile(username: cleanUsername, displayName: finalDisplayName, avatarURL: avatarURL, bio: bio, phone: phone)
         needsOnboarding = false
+
+        let userId = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).userId") ?? ""
+        guard !userId.isEmpty else { return }
+        let frameUpdate: [String: Any] = [
+            "owner_name": finalDisplayName,
+            "owner_avatar_url": avatarURL ?? ""
+        ]
+        _ = try? await patch(path: "/frame_posts?owner_id=eq.\(userId)", body: frameUpdate)
+        _ = try? await fetchLatestFrames()
     }
 
-#if DEBUG
-    func signInDebug() {
-        let debugId = UUID().uuidString
-        currentProfile = SBProfile(
-            id: debugId,
-            username: "user_\(String(debugId.prefix(8)))",
-            displayName: "",
-            createdAt: "",
-            updatedAt: nil
-        )
-        UserDefaults.standard.set("debug-token", forKey: "\(SupabaseConfig.defaultsPrefix).accessToken")
-        UserDefaults.standard.set(debugId, forKey: "\(SupabaseConfig.defaultsPrefix).userId")
-        isAuthenticated = true
-        isLoading = false
-        needsOnboarding = currentProfile!.username.hasPrefix("user_")
+    func checkUsernameAvailability(_ username: String) async throws -> Bool {
+        let clean = username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard clean.count >= 2 else { return false }
+        let (data, _) = try await get(path: "/profiles?username=eq.\(clean)&select=id&limit=1")
+        let profiles = try JSONDecoder().decode([SBProfile].self, from: data)
+        return profiles.isEmpty
     }
-#endif
+
+    private func bustAvatarURL(_ url: String?, updatedAt: String?) -> String? {
+        guard let url else { return nil }
+        guard let updatedAt, !updatedAt.isEmpty else { return url }
+        return "\(url)?t=\(updatedAt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? updatedAt)"
+    }
+
+    private func uploadAvatar(_ image: UIImage) async throws -> String {
+        guard let data = image.jpegData(compressionQuality: 0.8) else {
+            throw SBError.imageEncodingFailed
+        }
+        let userId = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).userId") ?? ""
+        let path = "\(userId)/avatar.jpg"
+        let uploadPath = "\(storageURL)/object/avatars/\(path)"
+
+        var req = URLRequest(url: URL(string: uploadPath)!)
+        req.httpMethod = "POST"
+        var headers: [String: String] = [
+            "apikey": anonKey,
+            "Content-Type": "image/jpeg",
+            "x-upsert": "true"
+        ]
+        if let auth = defaultHeaders["Authorization"], !auth.isEmpty {
+            headers["Authorization"] = auth
+        }
+        req.allHTTPHeaderFields = headers
+        req.httpBody = data
+
+        let (rdata, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let body = String(data: rdata, encoding: .utf8) ?? ""
+            print("❌ uploadAvatar failed: \(body)")
+            throw SBError.uploadFailed
+        }
+        return "\(storageURL)/object/public/avatars/\(path)"
+    }
 
     func restoreSession() async {
         isLoading = true
         defer { isLoading = false }
 
-        #if DEBUG
-        if let token = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).accessToken"),
-           token == "debug-token",
-           let debugId = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).userId") {
-            currentProfile = SBProfile(id: debugId, username: "debug_user", displayName: "Debug User", createdAt: "", updatedAt: nil)
-            isAuthenticated = true
-            needsOnboarding = false
-            return
-        }
-        #endif
-
         guard let token = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).accessToken"),
               !token.isEmpty else { return }
-        do {
-            try await refreshProfile()
-            checkOnboarding()
-        } catch {
+        isAuthenticated = true
+        if let profile = try? await fetchProfile() {
+            needsOnboarding = profile.username.hasPrefix("user_")
+            needsTutorial = false
+        } else {
             clearSession()
         }
     }
@@ -292,42 +379,56 @@ final class SupabaseService: ObservableObject {
 
         let (data, _) = try await get(path: "/profiles?id=eq.\(userId)&select=*")
         let profiles = try JSONDecoder().decode([SBProfile].self, from: data)
-        let profile = profiles.first
-        if let profile {
+        if let profile = profiles.first {
             currentProfile = profile
+            return profile
         }
-        return profile
+
+        // Retry après un court délai (le trigger handle_new_user peut être en cours)
+        try await Task.sleep(nanoseconds: 500_000_000)
+        let (data2, _) = try await get(path: "/profiles?id=eq.\(userId)&select=*")
+        let retryProfiles = try JSONDecoder().decode([SBProfile].self, from: data2)
+        if let profile = retryProfiles.first {
+            currentProfile = profile
+            return profile
+        }
+        return nil
     }
 
-    func upsertProfile(username: String, displayName: String) async throws -> SBProfile {
+    func upsertProfile(username: String, displayName: String, avatarURL: String? = nil, bio: String? = nil, phone: String? = nil) async throws -> SBProfile {
         let userId = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).userId") ?? ""
+        guard !userId.isEmpty else { throw SBError.notAuthenticated }
+
         let cleanUsername = username
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
             .replacingOccurrences(of: "@", with: "")
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "id": userId,
             "username": cleanUsername,
-            "display_name": displayName.trimmingCharacters(in: .whitespacesAndNewlines),
-            "updated_at": ISO8601DateFormatter().string(from: Date())
+            "display_name": displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         ]
-        let (data, _) = try await post(path: "/profiles", body: body, extraHeaders: ["Prefer": "resolution=merge-duplicates"])
+        if let avatarURL { body["avatar_url"] = avatarURL }
+        if let bio { body["bio"] = String(bio.prefix(160)) }
+        if let phone { body["phone"] = String(phone.prefix(20)) }
 
-        if let profile = try? JSONDecoder().decode(SBProfile.self, from: data) {
-            currentProfile = profile
-            return profile
+        let (data, _) = try await post(path: "/profiles", body: body, extraHeaders: [
+            "Prefer": "resolution=merge-duplicates,return=representation"
+        ])
+        let profiles = try JSONDecoder().decode([SBProfile].self, from: data)
+        guard let profile = profiles.first else {
+            throw SBError.invalidResponse
         }
-        // Fallback : refetch
-        return try await fetchProfile()!
+        currentProfile = profile
+        return profile
     }
 
     func searchUsers(query: String) async throws -> [SBProfile] {
         let cleaned = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard cleaned.count >= 2 else { return [] }
         let currentId = UserDefaults.standard.string(forKey: "\(SupabaseConfig.defaultsPrefix).userId") ?? ""
-
-        let (data, _) = try await get(path: "/profiles?username=ilike.\(cleaned)*&select=*&limit=20")
+        let (data, _) = try await get(path: "/profiles?or=(username.ilike.*\(cleaned)*,display_name.ilike.*\(cleaned)*,phone.ilike.*\(cleaned)*)&select=*&limit=20")
         var results = try JSONDecoder().decode([SBProfile].self, from: data)
         results.removeAll { $0.id == currentId }
         searchResults = results
@@ -347,7 +448,7 @@ final class SupabaseService: ObservableObject {
             "status": "pending"
         ]
         _ = try await post(path: "/friendships", body: body, extraHeaders: ["Prefer": "return=minimal"])
-        statusMessage = String(format: String(localized: "service.request_sent"), profile.username)
+        statusMessage = String(format: loc("service.request_sent"), profile.username)
     }
 
     func acceptFriendRequest(_ friendship: SBFriendship) async throws {
@@ -355,7 +456,7 @@ final class SupabaseService: ObservableObject {
         let body = ["status": "accepted"]
         _ = try await patch(path: "/friendships?id=eq.\(id)", body: body)
         try await refreshFriendships()
-        statusMessage = String(localized: "service.friend_added")
+        statusMessage = loc("service.friend_added")
     }
 
     func fetchIncomingRequests() async throws -> [SBFriendship] {
@@ -391,17 +492,28 @@ final class SupabaseService: ObservableObject {
 
     // MARK: - Frames
 
-    func publishFrame(photos: [UIImage?], dailyColor: DailyColor, selectedDate: Date, caption: String) async throws {
+    func publishFrame(photos: [UIImage?], transforms: [CellTransform], dailyColor: DailyColor, selectedDate: Date, caption: String) async throws {
         let completedPhotos = photos.compactMap { $0 }
         guard completedPhotos.count == 9 else {
+            print("❌ publishFrame: only \(completedPhotos.count)/9 photos")
             throw SBError.incompleteFrame
         }
+
+        let dateKey = DailyColorProvider.dateKey(for: selectedDate)
+        print("📤 publishFrame: \(dateKey) — \(dailyColor.name) — \(caption)")
+
+        let jsonTransforms = transforms.enumerated().map { (_, t) in
+            ["ox": t.offsetX, "oy": t.offsetY, "scale": t.scale]
+        }
+
         guard let profile = currentProfile else {
+            print("❌ publishFrame: no profile / not authenticated")
             throw SBError.notAuthenticated
         }
 
+        print("📤 publishFrame: profile=\(profile.id)")
+
         // 1. Upload les 9 images vers Storage
-        let dateKey = DailyColorProvider.dateKey(for: selectedDate)
         let frameId = "\(profile.id)/\(dateKey)"
         var imageUrls: [String] = []
 
@@ -410,25 +522,97 @@ final class SupabaseService: ObservableObject {
             imageUrls.append(url)
         }
 
+        print("✅ All 9 images uploaded, creating frame post...")
+
         // 2. Crée le post dans la DB
         let body: [String: Any] = [
             "owner_id": profile.id,
             "owner_name": profile.displayName,
+            "owner_avatar_url": profile.avatarURL ?? "",
             "date_key": dateKey,
             "color_name": dailyColor.name,
             "color_hex": dailyColor.hex,
             "caption": caption,
             "image_urls": imageUrls,
+            "image_transforms": jsonTransforms,
             "created_at": ISO8601DateFormatter().string(from: Date())
         ]
         _ = try await post(path: "/frame_posts", body: body, extraHeaders: ["Prefer": "return=minimal"])
+        print("✅ Frame post created in Supabase")
+    }
+
+    func fetchMyFrames() async throws -> [SBFramePost] {
+        guard let profile = currentProfile else { return [] }
+        let (data, _) = try await get(path: "/frame_posts?owner_id=eq.\(profile.id)&select=*&order=created_at.desc")
+        var frames = try JSONDecoder().decode([SBFramePost].self, from: data)
+        let displayName = profile.displayName
+        let bustedAvatar = bustAvatarURL(profile.avatarURL, updatedAt: profile.updatedAt)
+        for i in frames.indices {
+            frames[i].ownerName = displayName
+            frames[i].ownerAvatarURL = bustedAvatar
+        }
+        return frames
     }
 
     func fetchLatestFrames(limit: Int = 30) async throws -> [SBFramePost] {
         let (data, _) = try await get(path: "/frame_posts?select=*&order=created_at.desc&limit=\(limit)")
-        let frames = try JSONDecoder().decode([SBFramePost].self, from: data)
+        var frames = try JSONDecoder().decode([SBFramePost].self, from: data)
+
+        let ownerIds = Array(Set(frames.map { $0.ownerId }))
+        if !ownerIds.isEmpty {
+            let filters = ownerIds.map { "id.eq.\($0)" }.joined(separator: ",")
+            if let (profileData, _) = try? await get(path: "/profiles?or=(\(filters))&select=id,avatar_url,display_name,updated_at"),
+               let profiles = try? JSONDecoder().decode([SBProfile].self, from: profileData) {
+                var avatarMap: [String: String] = [:]
+                var nameMap: [String: String] = [:]
+                for p in profiles {
+                    if let url = p.avatarURL {
+                        avatarMap[p.id] = bustAvatarURL(url, updatedAt: p.updatedAt)
+                    }
+                    nameMap[p.id] = p.displayName
+                }
+                for i in frames.indices {
+                    if let url = avatarMap[frames[i].ownerId] {
+                        frames[i].ownerAvatarURL = url
+                    }
+                    if let name = nameMap[frames[i].ownerId], !name.isEmpty {
+                        frames[i].ownerName = name
+                    }
+                }
+            }
+        }
+
         feedFrames = frames
         return frames
+    }
+
+    func deleteFrame(for dateKey: String) async throws {
+        guard let profile = currentProfile else {
+            throw SBError.notAuthenticated
+        }
+        let ownerId = profile.id
+
+        // Supprime la ligne frame_posts (DB) + cascade likes/comments/images
+        _ = try await delete(path: "/frame_posts?owner_id=eq.\(ownerId)&date_key=eq.\(dateKey)")
+
+        // Supprime les 9 fichiers JPEG du Storage
+        let bucket = SupabaseConfig.framesBucket
+        for index in 0..<9 {
+            let path = "\(ownerId)/\(dateKey)/\(index).jpg"
+            try? await deleteStorageObject(bucket: bucket, path: path)
+        }
+
+        feedFrames.removeAll { $0.ownerId == ownerId && $0.dateKey == dateKey }
+    }
+
+    func fetchCaption(for dateKey: String) async -> String? {
+        guard let profile = currentProfile else { return nil }
+        let ownerId = profile.id
+        guard let (data, _) = try? await get(path: "/frame_posts?owner_id=eq.\(ownerId)&date_key=eq.\(dateKey)&select=caption&limit=1"),
+              let posts = try? JSONDecoder().decode([SBFramePost].self, from: data),
+              let post = posts.first else { return nil }
+        let parts = post.caption.components(separatedBy: " - ")
+        return parts.count > 1 ? parts.dropFirst().joined(separator: " - ") : nil
     }
 
     // MARK: - Likes
@@ -463,26 +647,41 @@ final class SupabaseService: ObservableObject {
 
     private func uploadImage(_ image: UIImage, path: String) async throws -> String {
         guard let data = image.jpegData(compressionQuality: 0.82) else {
+            print("❌ uploadImage: JPEG encoding failed")
             throw SBError.imageEncodingFailed
         }
 
         let bucket = SupabaseConfig.framesBucket
         let uploadPath = "\(storageURL)/object/\(bucket)/\(path)"
+        print("📤 Uploading to: \(uploadPath)")
 
         var req = URLRequest(url: URL(string: uploadPath)!)
         req.httpMethod = "POST"
-        req.allHTTPHeaderFields = [
+
+        var headers: [String: String] = [
             "apikey": anonKey,
-            "Authorization": defaultHeaders["Authorization"] ?? "",
             "Content-Type": "image/jpeg",
             "x-upsert": "true"
         ]
+        if let auth = defaultHeaders["Authorization"], !auth.isEmpty {
+            headers["Authorization"] = auth
+        }
+        req.allHTTPHeaderFields = headers
         req.httpBody = data
 
-        let (_, response) = try await session.data(for: req)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+        print("📤 Token present: \(defaultHeaders["Authorization"] != nil)")
+
+        let (rdata, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse else {
+            print("❌ uploadImage: invalid response type")
+            throw SBError.invalidResponse
+        }
+        guard (200...299).contains(http.statusCode) else {
+            let body = String(data: rdata, encoding: .utf8) ?? ""
+            print("❌ uploadImage failed: HTTP \(http.statusCode) — \(body)")
             throw SBError.uploadFailed
         }
+        print("✅ Uploaded: \(path)")
 
         // URL publique de l'image
         return "\(storageURL)/object/public/\(bucket)/\(path)"
@@ -508,10 +707,6 @@ final class SupabaseService: ObservableObject {
         incomingRequests = []
     }
 
-    private func refreshProfile() async throws {
-        _ = try await fetchProfile()
-    }
-
     private func refreshFriendships() async throws {
         _ = try await fetchIncomingRequests()
         _ = try await fetchFriends()
@@ -519,7 +714,7 @@ final class SupabaseService: ObservableObject {
 
     // MARK: - HTTP primitives
 
-    private func get(path: String) async throws -> (Data, HTTPURLResponse) {
+    func get(path: String) async throws -> (Data, HTTPURLResponse) {
         try await request("GET", path: path)
     }
 
@@ -552,17 +747,27 @@ final class SupabaseService: ObservableObject {
         guard let http = response as? HTTPURLResponse else {
             throw SBError.invalidResponse
         }
+        guard (200...299).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            print("❌ POST \(urlString) failed: HTTP \(http.statusCode) — \(body)")
+            throw SBError.invalidResponse
+        }
         return (data, http)
     }
 
     private func patch(path: String, body: [String: Any]) async throws -> (Data, HTTPURLResponse) {
         var req = URLRequest(url: URL(string: "\(restURL)\(path)")!)
         req.httpMethod = "PATCH"
-        req.allHTTPHeaderFields = defaultHeaders.merging(["Prefer": "return=minimal"]) { _, new in new }
+        req.allHTTPHeaderFields = defaultHeaders.merging(["Prefer": "return=representation"]) { _, new in new }
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await session.data(for: req)
         guard let http = response as? HTTPURLResponse else {
+            throw SBError.invalidResponse
+        }
+        guard (200...299).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            print("❌ PATCH \(restURL)\(path) failed: HTTP \(http.statusCode) — \(body)")
             throw SBError.invalidResponse
         }
         return (data, http)
@@ -576,7 +781,25 @@ final class SupabaseService: ObservableObject {
         guard let http = response as? HTTPURLResponse else {
             throw SBError.invalidResponse
         }
+        guard (200...299).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            print("❌ DELETE \(restURL)\(path) failed: HTTP \(http.statusCode) — \(body)")
+            throw SBError.invalidResponse
+        }
         return (data, http)
+    }
+
+    private func deleteStorageObject(bucket: String, path: String) async throws {
+        var req = URLRequest(url: URL(string: "\(storageURL)/object/\(bucket)/\(path)")!)
+        req.httpMethod = "DELETE"
+        req.allHTTPHeaderFields = defaultHeaders
+        let (_, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse else {
+            throw SBError.invalidResponse
+        }
+        guard (200...299).contains(http.statusCode) else {
+            throw SBError.uploadFailed
+        }
     }
 }
 
@@ -612,15 +835,15 @@ enum SBError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notAuthenticated:
-            return String(localized: "service.not_authenticated")
+            return loc("service.not_authenticated")
         case .incompleteFrame:
             return "Le frame doit contenir 9 photos avant publication."
         case .imageEncodingFailed:
-            return String(localized: "service.image_encoding_failed")
+            return loc("service.image_encoding_failed")
         case .uploadFailed:
-            return String(localized: "service.upload_failed")
+            return loc("service.upload_failed")
         case .invalidResponse:
-            return String(localized: "service.invalid_response")
+            return loc("service.invalid_response")
         case .decodingFailed(let detail):
             return "Erreur de parsing: \(detail)"
         }

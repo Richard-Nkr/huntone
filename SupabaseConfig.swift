@@ -6,10 +6,11 @@ enum SupabaseConfig {
     /// URL de ton projet Supabase (ex: "https://abcdefghijklm.supabase.co")
     static let url = "https://inaaarwomalmaxyipllr.supabase.co"
 
-    /// Clé publique "publishable" (utilisable côté client, Row Level Security activé)
-    /// Format : sb_publishable_xxxxxxxxxxxx
-    /// Disponible dans Supabase Dashboard > Settings > API > Publishable Key
-    static let publishableKey = "sb_publishable_67wIRAWNXINuB8crvtD1Mg_Sal_f0-c"
+    /// Clé publique "publishable" — REMPLACE avec la vraie clé depuis :
+    /// Supabase Dashboard → Settings → API → Publishable Key
+    /// La clé complète fait ~200 caractères (format JWT)
+    /// ⚠️ VÉRIFIE que la clé ci-dessous est COMPLÈTE (pas tronquée) :
+    static let publishableKey = "sb_publishable_61M1_2El528O_VAIX0C6SQ_rq7jbeV_"
 
     /// Clé secrète "service_role" — NE JAMAIS inclure dans le binaire client
     /// Usage : backend/admin uniquement

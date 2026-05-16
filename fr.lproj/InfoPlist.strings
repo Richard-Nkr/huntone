@@ -1,0 +1,5 @@
+/* Huntone - French InfoPlist Localization */
+
+NSCameraUsageDescription = "Huntone utilise la caméra pour capturer tes 9 photos de la couleur du jour.";
+NSLocationWhenInUseUsageDescription = "Huntone utilise ta localisation uniquement pour afficher la ville de ta chasse du jour.";
+NSPhotoLibraryUsageDescription = "Huntone peut importer une photo existante pour compléter ton frame quotidien.";

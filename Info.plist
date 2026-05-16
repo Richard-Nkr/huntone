@@ -2,12 +2,36 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.richaskip.huntone</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>huntone</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>fr</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>Huntone</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconFiles</key>
+	<array>
+		<string>icon-120</string>
+	</array>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -22,6 +46,7 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>UIAppFonts</key>
 	<array>
+		<string>Comico-Regular.otf</string>
 		<string>ClashDisplay-Bold.otf</string>
 		<string>ClashDisplay-Extralight.otf</string>
 		<string>ClashDisplay-Light.otf</string>
@@ -33,6 +58,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Huntone utilise la camera pour capturer tes 9 photos de la couleur du jour.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Huntone utilise ta localisation uniquement pour afficher la ville de ta chasse du jour.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Huntone peut importer une photo existante pour completer ton frame quotidien.</string>
 	<key>UIApplicationSceneManifest</key>

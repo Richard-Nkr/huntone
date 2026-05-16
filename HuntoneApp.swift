@@ -1,21 +1,23 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct HuntoneApp: App {
     @StateObject private var viewModel = HuntoneViewModel()
-    @StateObject private var socialViewModel = SocialViewModel()
     @StateObject private var supabaseService = SupabaseService.shared
+    @StateObject private var languageManager = LanguageManager.shared
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AuthGateView()
                 .environmentObject(viewModel)
-                .environmentObject(socialViewModel)
                 .environmentObject(supabaseService)
+                .environmentObject(languageManager)
+                .id(languageManager.current)
                 .task {
-                    // Restaure la session Supabase si un token existe
                     await supabaseService.restoreSession()
                 }
         }
+        .modelContainer(for: [DailyGrid.self, GridCell.self])
     }
 }
